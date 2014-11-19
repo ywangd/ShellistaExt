@@ -44,11 +44,10 @@ from argparse import ArgumentParser
 
 #PLUGINS_URL='https://github.com/transistor1/shellista/archive/master.tar.gz#module_name=plugins&module_path=shellista-master&move_to=./plugins'
 
+
 shell = None
 
-
-
-__DEBUG__ = False
+__STARTUP_ARGS__ = {}
 
 #Imports for ModuleInstaller
 import mimetypes
@@ -242,22 +241,27 @@ class ModuleInstaller():
             
             if not os.path.exists(dst):
                 os.makedirs(dst)
-            
-            
+
             try:
+                tgt = os.path.join(dst, os.path.basename(src))
+
                 if overwrite_existing:
-                    existing = os.path.join(dst, os.path.basename(src))
+                    existing = tgt
                     if os.path.exists(existing):
                         if os.path.isdir(existing):
                             shutil.rmtree(existing)
                         else:
                             os.unlink(existing)
                 
-                
                 #Move the source folder to the dest
-                shutil.move(src, os.path.join(dst, os.path.basename(src)))
+                shutil.move(src, tgt)
+                if __STARTUP_ARGS__['TINY']:
+                    for f in os.listdir(tgt):
+                        fullf = os.path.join(tgt, f)
+                        if os.path.isdir(fullf) and (f.startswith('test') or f.startswith('doc')):
+                            print 'Tiny installation required. Deleting %s' % fullf
+                            shutil.rmtree(fullf)
             except Exception as e:
-                raise e
                 raise ModuleDownloadException('Module: {0} - Can\'t find directory module_path. Please check that the module was extracted correctly, and into the proper directory.'.format(self.module_name))
             
             self._rmworkdir()
@@ -270,7 +274,7 @@ def _check_for_plugins():
     plugins_dir = os.path.join(plugins_parent, 'plugins')
     if not os.path.exists(plugins_dir):
         print 'Downloading plugins...'
-        if __DEBUG__:
+        if __STARTUP_ARGS__['DEBUG']:
             base_url = 'file:///{0}/{1}/{2}'.format(os.path.dirname(os.getcwd()),'shellista-deps','{0}')
             PLUGINS_URL= base_url.format('ShellistaExt-master.tar.gz#module_name=plugins&module_path=ShellistaExt/ShellistaExt/plugins&move_to=.')
         else:
@@ -332,7 +336,7 @@ class Shellista(cmd.Cmd):
 
 
         cmd.Cmd.__init__(self)
-        os.chdir(os.path.expanduser('~/Documents'))
+        os.chdir(__STARTUP_ARGS__['INIT_PATH'])
         self.getPrompt()
 
     def bash(self, argstr):
@@ -399,19 +403,13 @@ class Shellista(cmd.Cmd):
             plugin(self, stop, line)
         return self.did_quit
 
-    def addCmdList(self,name):
+    def addCmdList(self, name):
         if name in self.cmdList:
             print 'Conflict: Command %s already in use.' % name
             return False
         else:
             self.cmdList.append(name)
             return True
-
-
-
-
-
-
 
     def getPrompt(self):
         prompt = os.path.relpath(os.getcwd(),os.path.expanduser('~'))
@@ -425,11 +423,21 @@ class Shellista(cmd.Cmd):
 
 if __name__ == '__main__':
     # Parse argument
-    parser = ArgumentParser(usage="Usage: %prog [options]")
-    parser.add_argument('-d', '--debug', action='store_false', help='Turn on debug mode')
+    parser = ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true', help='Turn on debug mode')
+    parser.add_argument('-t', '--tiny', action='store_true',
+                        help='Tiny module installation by removing docs and tests')
+    parser.add_argument('-p', '--init-path',
+                        default=os.path.expanduser('~/Documents'),
+                        metavar='INIT_PATH',
+                        dest='initpath',
+                        help='The startup folder')
 
     args = parser.parse_args()
-    globals()['__DEBUG__'] = args.debug
+
+    __STARTUP_ARGS__['DEBUG'] = args.debug
+    __STARTUP_ARGS__['TINY'] = args.tiny
+    __STARTUP_ARGS__['INIT_PATH'] = args.initpath
 
     if not shell:
         _check_for_plugins()
