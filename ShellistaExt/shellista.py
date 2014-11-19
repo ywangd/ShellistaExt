@@ -3,6 +3,8 @@ import cmd
 import shlex
 import importlib
 
+from argparse import ArgumentParser
+
 # Credits
 #
 # The python code here was written by pudquick@github and modified by briarfox@github
@@ -44,15 +46,9 @@ import importlib
 
 shell = None
 
+
+
 __DEBUG__ = False
-
-if __DEBUG__:
-    base_url = 'file:///{0}/{1}/{2}'.format(os.path.dirname(os.getcwd()),'shellista-deps','{0}')
-    PLUGINS_URL= base_url.format('ShellistaExt-master.tar.gz#module_name=plugins&module_path=ShellistaExt/ShellistaExt/plugins&move_to=.')
-else:
-    #PLUGINS_URL='https://github.com/briarfox/ShellistaExt/archive/master.tar.gz#module_name=plugins&module_path=ShellistaExt-master/ShellistaExt/plugins&move_to=.'
-    PLUGINS_URL='https://github.com/transistor1/ShellistaExt/archive/dev-modular.zip#module_name=plugins&module_path=ShellistaExt-*/ShellistaExt/plugins&move_to=.'
-
 
 #Imports for ModuleInstaller
 import mimetypes
@@ -274,6 +270,13 @@ def _check_for_plugins():
     plugins_dir = os.path.join(plugins_parent, 'plugins')
     if not os.path.exists(plugins_dir):
         print 'Downloading plugins...'
+        if __DEBUG__:
+            base_url = 'file:///{0}/{1}/{2}'.format(os.path.dirname(os.getcwd()),'shellista-deps','{0}')
+            PLUGINS_URL= base_url.format('ShellistaExt-master.tar.gz#module_name=plugins&module_path=ShellistaExt/ShellistaExt/plugins&move_to=.')
+        else:
+            #PLUGINS_URL='https://github.com/briarfox/ShellistaExt/archive/master.tar.gz#module_name=plugins&module_path=ShellistaExt-master/ShellistaExt/plugins&move_to=.'
+            PLUGINS_URL='https://github.com/transistor1/ShellistaExt/archive/dev-modular.zip#module_name=plugins&module_path=ShellistaExt-*/ShellistaExt/plugins&move_to=.'
+
         #os.mkdir('plugins')
         installer = ModuleInstaller(PLUGINS_URL)
         installer.module_install()
@@ -291,7 +294,7 @@ class Shellista(cmd.Cmd):
         self.cmdList = ['quit','exit','logoff','logout',]
         #self._bash = BetterParser()
         #self._bash.env_vars['$HOME']   = os.path.expanduser('~/Documents')
-        for root,directory,files in os.walk('./plugins'):#os.listdir(os.path.join(os.curdir,'plugins')):
+        for root, directory, files in os.walk('./plugins'):#os.listdir(os.path.join(os.curdir,'plugins')):
 
             for file in files:
                 (path, extension) = os.path.splitext(file)
@@ -421,6 +424,13 @@ class Shellista(cmd.Cmd):
         pass
 
 if __name__ == '__main__':
+    # Parse argument
+    parser = ArgumentParser(usage="Usage: %prog [options]")
+    parser.add_argument('-d', '--debug', action='store_false', help='Turn on debug mode')
+
+    args = parser.parse_args()
+    globals()['__DEBUG__'] = args.debug
+
     if not shell:
         _check_for_plugins()
         shell = Shellista()
