@@ -52,3 +52,11 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+# Derived sources
+local-modules
+
+# Vim
+*.swp
+
+# PyCharm
+.idea

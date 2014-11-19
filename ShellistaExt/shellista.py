@@ -297,9 +297,10 @@ class Shellista(cmd.Cmd):
                 (path, extension) = os.path.splitext(file)
 
                 if extension == '.py' and path != '__init__' and '_plugin' in path:
+                    lib = None
                     try:
 
-                        lib = importlib.import_module(root[2:].replace('/','.')+'.'+path)
+                        lib = importlib.import_module(root[2:].replace(os.path.sep,'.')+'.'+path)
                         name = 'do_'+path.lower().replace('_plugin','')
                         if self.addCmdList(path.lower()):
                             setattr(Shellista, name, self._CmdGenerator(lib.main))
