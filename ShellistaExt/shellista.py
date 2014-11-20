@@ -4,6 +4,7 @@ import shlex
 import importlib
 
 from argparse import ArgumentParser
+from ConfigParser import ConfigParser
 
 # Credits
 #
@@ -294,6 +295,12 @@ class Shellista(cmd.Cmd):
     settings = {}
 
     def __init__(self):
+
+        self.settings = ConfigParser()
+        self.settings.read(os.path.expanduser('~/Documents/.shellistarc'))
+        if not self.settings.has_section('alias'):
+            self.settings.add_section('alias')
+
         self.did_quit = False
         self.cmdList = ['quit','exit','logoff','logout',]
         #self._bash = BetterParser()
@@ -394,6 +401,9 @@ class Shellista(cmd.Cmd):
         plugins = self.PRECMD_PLUGINS
         for plugin in plugins:
             line = plugin(self, line)
+        fields = line.split()
+        if len(fields) > 0 and fields[0] in self.settings.options('alias'):
+            line = line.replace(fields[0], self.settings.get('alias', fields[0]), 1)
         line = cmd.Cmd.precmd(self, line)
         return line
         
