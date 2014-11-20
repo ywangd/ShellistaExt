@@ -19,33 +19,24 @@ try:
 except:
     from ... tools import ios_console as console
 
-from ... tools import ios_keychain as keychain
+try:
+    import keychain
+except:
+    from ... tools import ios_keychain as keychain
 
 
 shellista = sys.modules['__main__']
 
 SAVE_PASSWORDS = shellista.Shellista.settings.get('save_passwords', True)
 
-__DEBUG__ = False
-
-if __DEBUG__:
-
-    base_url = 'file://' + os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))) + '/shellista-deps'
-    DULWICH_URL = base_url + '/dulwich.tar.gz#module_name=dulwich&module_path=dulwich-master/dulwich&move_to=./local-modules'
-    GITTLE_URL = base_url + '/gittle.tar.gz#module_name=gittle&module_path=gittle-*/gittle&move_to=./local-modules'
-    FUNKY_URL = base_url + '/funky.tar.gz#module_name=funky&module_path=*funky-*/funky&move_to=./local-modules'
-    MIMER_URL = base_url + '/mimer.tar.gz#module_name=mimer&module_path=*mimer-*/mimer&move_to=./local-modules'
-
-else:
-    #PIPISTA_URL='https://gist.githubusercontent.com/transistor1/0ea245e666189b3e675a/raw/23a23e229d6c279be3bc380c18c22fc2de24ef17/pipista.py#module_name=pipista&module_path=pipista.py&move_to=local-modules'
-    DULWICH_URL='https://github.com/transistor1/dulwich/archive/master.tar.gz#module_name=dulwich&module_path=dulwich-master/dulwich&move_to=local-modules'
-    GITTLE_URL='https://github.com/FriendCode/gittle/archive/522ce011851aee28fd6bb11b502978c9352fd137.tar.gz#module_name=gittle&module_path=gittle-*/gittle&move_to=local-modules'
-    FUNKY_URL='https://github.com/FriendCode/funky/tarball/e89cb2ce4374bf2069c7f669e52e046f63757241#module_name=funky&module_path=Friend*/funky&move_to=local-modules&save_as=funky.tar.gz'
-    MIMER_URL='https://github.com/FriendCode/mimer/tarball/a812e5f631b9b5c969df5a2ea84b635490a96ced#module_name=mimer&module_path=Friend*/mimer&move_to=local-modules&save_as=mimer.tar.gz'
+DULWICH_URL='https://github.com/transistor1/dulwich/archive/master.tar.gz#module_name=dulwich&module_path=dulwich-master/dulwich&move_to=local-modules'
+GITTLE_URL='https://github.com/FriendCode/gittle/archive/522ce011851aee28fd6bb11b502978c9352fd137.tar.gz#module_name=gittle&module_path=gittle-*/gittle&move_to=local-modules'
+FUNKY_URL='https://github.com/FriendCode/funky/tarball/e89cb2ce4374bf2069c7f669e52e046f63757241#module_name=funky&module_path=Friend*/funky&move_to=local-modules&save_as=funky.tar.gz'
+MIMER_URL='https://github.com/FriendCode/mimer/tarball/a812e5f631b9b5c969df5a2ea84b635490a96ced#module_name=mimer&module_path=Friend*/mimer&move_to=local-modules&save_as=mimer.tar.gz'
 
 def _progress(tot):
     print 'Downloaded {0} bytes'.format(tot)
-    
+
 #Make sure you order these in terms of what is needed first
 for i in [FUNKY_URL, MIMER_URL, DULWICH_URL, GITTLE_URL]:
     installer = shellista.ModuleInstaller(i, root_dir=os.path.dirname(os.path.abspath(__file__)))
@@ -60,7 +51,7 @@ from gittle import Gittle
 
 def main(self, line):
     do_git(line)
-    
+
 #TODO: This might be better as a class, play around with it
 
 def do_git(line):
@@ -117,7 +108,11 @@ def do_git(line):
     def git_add(args):
         if len(args) > 0:
             repo = _get_repo()
-            args = [os.path.join(os.path.relpath('.', repo.path),x) for x in args]
+            cwd = os.getcwd()
+            args = [os.path.join(os.path.relpath(cwd, repo.path), x)
+                        if not os.path.samefile(cwd, repo.path) else x for x in args]
+            for file in args:
+                print 'Adding {0}'.format(file)
             #repo.stage(args)
             porcelain.add(repo.repo, args)
         else:
@@ -126,7 +121,11 @@ def do_git(line):
     def git_rm(args):
         if len(args) > 0:
             repo = _get_repo()
-            args = [os.path.join(os.path.relpath('.', repo.path),x) for x in args]
+            cwd = os.getcwd()
+            args = [os.path.join(os.path.relpath(cwd, repo.path), x)
+                        if not os.path.samefile(cwd, repo.path) else x for x in args]
+            for file in args:
+                print 'Removing {0}'.format(file)
             #repo.rm(args)
             porcelain.rm(repo.repo, args)
         else:
@@ -197,7 +196,7 @@ def do_git(line):
         user, sep, pw = result.u.partition(':') if result.u else (None,None,None)
 
         repo = _get_repo()
-        
+
         #Try to get the remote origin
         if not result.url:
             result.url = repo.remotes.get('origin','')
@@ -234,11 +233,11 @@ def do_git(line):
 
             opener = auth_urllib2_opener(None, result.url, user, pw)
 
-            print porcelain.push(repo.repo, result.url, branch_name, opener=opener)
+            porcelain.push(repo.repo, result.url, branch_name, opener=opener)
             keychain.set_password(keychainservice, user, pw)
 
         else:
-            print porcelain.push(repo.repo, result.url, branch_name)
+            porcelain.push(repo.repo, result.url, branch_name)
 
     def git_modified(args):
         repo = _get_repo()
@@ -246,14 +245,31 @@ def do_git(line):
             print mod_file
 
     def git_log(args):
-        if len(args) <= 1:
-            try:
-                repo = _get_repo()
-                porcelain.log(repo.repo, max_entries=int(args[0]) if len(args)==1 else None)
-            except ValueError:
-                print command_help['log']
-        else:
+        parser = argparse.ArgumentParser(description='git log arg parser')
+        parser.add_argument('-f','--format',
+                            action='store',
+                            dest='format',
+                            default=False)
+        parser.add_argument('-o','--output',
+                            action='store',
+                            dest='output',
+                            type=argparse.FileType('w'),
+                            default=sys.stdout)
+
+        parser.add_argument('-l','--length',
+                            action='store',
+                            type=int,
+                            dest='max_entries',
+                            default=None)
+
+        results = parser.parse_args(args)
+
+        try:
+            repo = _get_repo()
+            porcelain.log(repo.repo, max_entries=results.max_entries,format=results.format,outstream=results.output)
+        except ValueError:
             print command_help['log']
+
 
 
     def git_checkout(args):
@@ -306,7 +322,7 @@ def do_git(line):
     ,'commit': 'git commit <message> <name> <email> - commit staged files'
     ,'clone': 'git clone <url> [path] - clone a remote repository'
     ,'modified': 'git modified - show what files have been modified'
-    ,'log': 'git log [number of changes to show] - show a full log of changes'
+    ,'log': 'git log - Options:\n\t[-l|--length  numner_of _results]\n\t[-f|--format format string can use {message},{author},{author_email},{committer},{committer_email},{merge},{commit}]\n\t[-o|--output]  file_name'
     ,'push': 'git push [http(s)://<remote repo>] [-u username[:password]] - push changes back to remote'
     ,'pull': 'git pull [http(s)://<remote repo>] - pull changes from a remote repository'
     ,'checkout': 'git checkout <branch> - check out a particular branch in the Git tree'
