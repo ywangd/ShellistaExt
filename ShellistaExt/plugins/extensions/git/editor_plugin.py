@@ -8,18 +8,21 @@ import os
 try:
     import editor
     HAS_EDITOR = True
+    import console
 except:
     pass
 
 from ... tools.toolbox import bash
 
 def main(self, line):
-    print line
     args = bash(line)
 
     if len(args) == 1:
         if HAS_EDITOR:
-            editor.open_file(os.path.join(os.getcwd(), args[0]))
+            f = os.path.join(os.getcwd(), args[0])
+            print 'Opening %s' % f
+            editor.open_file(f)
+            console.hide_output()
         else:
             import platform
             if platform.system() == 'Linux':
