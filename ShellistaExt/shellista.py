@@ -424,9 +424,9 @@ class Shellista(cmd.Cmd):
     def getPrompt(self):
         prompt = os.path.relpath(os.getcwd(),os.path.expanduser('~'))
         if prompt == '.':
-            self.prompt = '</ >'
+            self.prompt = '/ > '
         else:
-            self.prompt = '</'+prompt + ' >'
+            self.prompt = '/'+prompt + ' > '
 
     def emptyline(self):
         pass
